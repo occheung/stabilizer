@@ -523,7 +523,7 @@ mod app {
         c.shared.network.lock(|net| net.direct_stream(target));
     }
 
-    #[task(priority = 1, shared=[network, settings, telemetry], local=[cpu_temp_sensor])]
+    #[task(priority = 1, shared=[network, settings, telemetry, pounder_devices], local=[cpu_temp_sensor])]
     fn telemetry(mut c: telemetry::Context) {
         let telemetry: TelemetryBuffer =
             c.shared.telemetry.lock(|telemetry| *telemetry);
@@ -533,11 +533,55 @@ mod app {
             .settings
             .lock(|settings| (settings.afe, settings.telemetry_period));
 
+        let (pounder_temp, input_powers) =
+            c.shared.pounder_devices.lock(|pounder_dev| {
+                if let Some(dev) = pounder_dev {
+                    let input_powers = [
+                        dev.measure_power(PounderChannel::IN0).unwrap(),
+                        dev.measure_power(PounderChannel::IN1).unwrap(),
+                    ];
+
+                    // Update LED status
+                    // L5 & L7 indicates high input power detected for each channel (>-6 dBm)
+                    // L4 & L6 indicates input signal detected for each channel (>-18 dBm)
+                    // L8 indicates AD9959 reference clock is driven by external source
+                    let mut led_state = LED::empty();
+
+                    if input_powers[0] > -18.0 {
+                        led_state.insert(LED::LED4);
+                        if input_powers[0] > -6.0 {
+                            led_state.insert(LED::LED5);
+                        }
+                    }
+
+                    if input_powers[1] > -18.0 {
+                        led_state.insert(LED::LED6);
+                        if input_powers[1] > -6.0 {
+                            led_state.insert(LED::LED7);
+                        }
+                    }
+
+                    // TODO: Review LED configuration policy
+                    // It should probably be configured immediately after ext_clk is (de)selected.
+                    led_state.set(LED::LED8, dev.get_ext_clk_enabled());
+                    dev.set_led(led_state).unwrap();
+
+                    (
+                        Some(dev.lm75.read_temperature().unwrap()),
+                        Some(input_powers),
+                    )
+                } else {
+                    (None, None)
+                }
+            });
+
         c.shared.network.lock(|net| {
             net.telemetry.publish(&telemetry.finalize(
                 gains[0],
                 gains[1],
                 c.local.cpu_temp_sensor.get_temperature().unwrap(),
+                pounder_temp,
+                input_powers,
             ))
         });
 
