@@ -2,6 +2,7 @@ use self::attenuators::AttenuatorInterface;
 
 use super::hal;
 use crate::hardware::{shared_adc::AdcChannel, I2c1Proxy};
+use bitflags::bitflags;
 use embedded_hal::blocking::spi::Transfer;
 use enum_iterator::Sequence;
 use serde::{Deserialize, Serialize};
@@ -14,40 +15,28 @@ pub mod rf_power;
 #[cfg(not(feature = "pounder_v1_0"))]
 pub mod timestamp;
 
-#[derive(Debug, Copy, Clone, Sequence)]
-pub enum GpioPin {
-    Led4Green,
-    Led5Red,
-    Led6Green,
-    Led7Red,
-    Led8Green,
-    Led9Red,
-    AttLe0,
-    AttLe1,
-    AttLe2,
-    AttLe3,
-    AttRstN,
-    OscEnN,
-    ExtClkSel,
+bitflags! {
+    /// Specifies a combination of LEDs controllable by the I/O expander Bank A
+    pub struct LED: u8 {
+        const LED4 = 0b00000001;
+        const LED5 = 0b00000010;
+        const LED6 = 0b00000100;
+        const LED7 = 0b00001000;
+        const LED8 = 0b00010000;
+        const LED9 = 0b00100000;
+    }
 }
 
-impl From<GpioPin> for mcp230xx::Mcp23017 {
-    fn from(x: GpioPin) -> Self {
-        match x {
-            GpioPin::Led4Green => Self::A0,
-            GpioPin::Led5Red => Self::A1,
-            GpioPin::Led6Green => Self::A2,
-            GpioPin::Led7Red => Self::A3,
-            GpioPin::Led8Green => Self::A4,
-            GpioPin::Led9Red => Self::A5,
-            GpioPin::AttLe0 => Self::B0,
-            GpioPin::AttLe1 => Self::B1,
-            GpioPin::AttLe2 => Self::B2,
-            GpioPin::AttLe3 => Self::B3,
-            GpioPin::AttRstN => Self::B5,
-            GpioPin::OscEnN => Self::B6,
-            GpioPin::ExtClkSel => Self::B7,
-        }
+bitflags! {
+    /// Specifies a combination of signals controllable by the I/O expander Bank B
+    pub struct GPIO: u8 {
+        const ATTLE0    = 0b00000001;
+        const ATTLE1    = 0b00000010;
+        const ATTLE2    = 0b00000100;
+        const ATTLE3    = 0b00001000;
+        const ATTRSTN   = 0b00100000;
+        const OSCENN    = 0b01000000;
+        const EXTCLKSEL = 0b10000000;
     }
 }
 

@@ -910,6 +910,7 @@ name = "stabilizer"
 version = "0.7.0"
 dependencies = [
  "ad9959",
+ "bitflags",
  "cortex-m 0.7.6",
  "cortex-m-rt",
  "cortex-m-rtic",
