@@ -74,7 +74,7 @@ pub trait AttenuatorInterface {
 
     fn reset_attenuators(&mut self) -> Result<(), Error>;
 
-    fn latch_attenuator(&mut self, channel: Channel) -> Result<(), Error>;
+    fn latch_attenuators(&mut self, channel: Channel) -> Result<(), Error>;
 
     fn transfer_attenuators(
         &mut self,

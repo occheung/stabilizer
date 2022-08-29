@@ -433,15 +433,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ca88d725a0a943b096803bd34e73a4437208b6077654cc4ecb2947a5f91618d"
 
 [[package]]
-name = "mcp230xx"
-version = "0.1.0"
+name = "mcp23017"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf09e3689e2dcf7e563015ab094f224be2997035ea8e00e83ef97ed2ee4fe729"
+checksum = "2c32fd6627e73f1cfa95c00ddcdcb5a6a6ddbd10b308d08588a502c018b6e12c"
 dependencies = [
- "bit_field",
  "embedded-hal",
- "num_enum",
- "paste",
 ]
 
 [[package]]
@@ -923,7 +920,7 @@ dependencies = [
  "idsp",
  "lm75",
  "log",
- "mcp230xx",
+ "mcp23017",
  "miniconf",
  "minimq",
  "mono-clock",
