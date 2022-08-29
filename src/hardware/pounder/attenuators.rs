@@ -8,68 +8,45 @@ use super::{Channel, Error};
 /// reading the shfit register. The downside of this approach is that any read is destructive, so a
 /// read-writeback approach is employed.
 pub trait AttenuatorInterface {
-    /// Set the attenuation of a single channel.
+    /// Set the attenuation of all pounder channels.
     ///
     /// Args:
-    /// * `channel` - The pounder channel to configure the attenuation of.
-    /// * `attenuation` - The desired attenuation of the channel in dB. This has a resolution of
+    /// * `channel` - A set of channels to configure the attenuation of.
+    /// * `attenuations` - The desired attenuation of the channels in dB. This has a resolution of
     ///   0.5dB.
-    fn set_attenuation(
+    fn set_attenuations(
         &mut self,
-        channel: Channel,
-        attenuation: f32,
-    ) -> Result<f32, Error> {
-        if !(0.0..=31.5).contains(&attenuation) {
-            return Err(Error::Bounds);
+        channels: Channel,
+        mut attenuations: [f32; 4],
+    ) -> Result<[f32; 4], Error> {
+        let mut attenuation_codes = [0; 4];
+        let mut bytes = [0; 4];
+        for (i, att) in attenuations.iter().enumerate() {
+            if !(0.0..=31.5).contains(att) {
+                return Err(Error::Bounds);
+            }
+
+            // Calculate the attenuation code to program into the attenuator. The attenuator uses a
+            // code where the LSB is 0.5 dB.
+            attenuation_codes[i] = (att * 2.0) as u8;
+
+            // The lowest 2 bits of the 8-bit shift register on the attenuator are ignored. Shift the
+            // attenuator code into the upper 6 bits of the register value. Note that the attenuator
+            // treats inputs as active-low, so the code is inverted before writing.
+            bytes[i] = !(attenuation_codes[i] << 2);
         }
 
-        // Calculate the attenuation code to program into the attenuator. The attenuator uses a
-        // code where the LSB is 0.5 dB.
-        let attenuation_code = (attenuation * 2.0) as u8;
-
-        // Read all the channels, modify the channel of interest, and write all the channels back.
-        // This ensures the staging register and the output register are always in sync.
-        let mut channels = [0_u8; 4];
-        self.transfer_attenuators(&mut channels)?;
-
-        // The lowest 2 bits of the 8-bit shift register on the attenuator are ignored. Shift the
-        // attenuator code into the upper 6 bits of the register value. Note that the attenuator
-        // treats inputs as active-low, so the code is inverted before writing.
-        channels[channel as usize] = !(attenuation_code << 2);
-        self.transfer_attenuators(&mut channels)?;
+        // Configure attenuations of all channels at the same time.
+        self.transfer_attenuators(&mut bytes)?;
 
         // Finally, latch the output of the updated channel to force it into an active state.
-        self.latch_attenuator(channel)?;
+        self.latch_attenuators(channels)?;
 
-        Ok(attenuation_code as f32 / 2.0)
-    }
+        for i in 0..4 {
+            attenuations[i] = attenuation_codes[i] as f32 / 2.0;
+        }
 
-    /// Get the attenuation of a channel.
-    ///
-    /// Args:
-    /// * `channel` - The channel to get the attenuation of.
-    ///
-    /// Returns:
-    /// The programmed attenuation of the channel in dB.
-    fn get_attenuation(&mut self, channel: Channel) -> Result<f32, Error> {
-        let mut channels = [0_u8; 4];
-
-        // Reading the data always shifts data out of the staging registers, so we perform a
-        // duplicate write-back to ensure the staging register is always equal to the output
-        // register.
-        self.transfer_attenuators(&mut channels)?;
-        self.transfer_attenuators(&mut channels)?;
-
-        // The attenuation code is stored in the upper 6 bits of the register, where each LSB
-        // represents 0.5 dB. The attenuator stores the code as active-low, so inverting the result
-        // (before the shift) has the affect of transforming the bits of interest (and the
-        // dont-care bits) into an active-high state and then masking off the don't care bits. If
-        // the shift occurs before the inversion, the upper 2 bits (which would then be don't
-        // care) would contain erroneous data.
-        let attenuation_code = (!channels[channel as usize]) >> 2;
-
-        // Convert the desired channel code into dB of attenuation.
-        Ok(attenuation_code as f32 / 2.0)
+        Ok(attenuations)
     }
 
     fn reset_attenuators(&mut self) -> Result<(), Error>;
