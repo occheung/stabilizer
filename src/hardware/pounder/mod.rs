@@ -58,15 +58,16 @@ impl From<hal::xspi::QspiError> for Error {
     }
 }
 
-/// The numerical value (discriminant) of the Channel enum is the index in the attenuator shift
-/// register as well as the attenuator latch enable signal index on the GPIO extender.
-#[derive(Debug, Copy, Clone)]
-#[allow(dead_code)]
-pub enum Channel {
-    In0 = 0,
-    Out0 = 1,
-    In1 = 2,
-    Out1 = 3,
+bitflags! {
+    /// Specifies a set of output channels to the digital attenuator.
+    pub struct Channel: u8 {
+        const IN0  = 0b00000001;
+        const OUT0 = 0b00000010;
+        const IN1  = 0b00000100;
+        const OUT1 = 0b00001000;
+    }
+}
+
 }
 
 impl From<Channel> for GpioPin {
@@ -386,8 +387,8 @@ impl PounderDevices {
     /// Sample one of the two auxiliary ADC channels associated with the respective RF input channel.
     pub fn sample_aux_adc(&mut self, channel: Channel) -> Result<f32, Error> {
         let adc_scale = match channel {
-            Channel::In0 => self.aux_adc0.read_normalized().unwrap(),
-            Channel::In1 => self.aux_adc1.read_normalized().unwrap(),
+            Channel::IN0 => self.aux_adc0.read_normalized().unwrap(),
+            Channel::IN1 => self.aux_adc1.read_normalized().unwrap(),
             _ => return Err(Error::InvalidChannel),
         };
 
@@ -492,8 +493,8 @@ impl rf_power::PowerMeasurementInterface for PounderDevices {
     /// The sampled voltage of the specified channel.
     fn sample_converter(&mut self, channel: Channel) -> Result<f32, Error> {
         let adc_scale = match channel {
-            Channel::In0 => self.pwr0.read_normalized().unwrap(),
-            Channel::In1 => self.pwr1.read_normalized().unwrap(),
+            Channel::IN0 => self.pwr0.read_normalized().unwrap(),
+            Channel::IN1 => self.pwr1.read_normalized().unwrap(),
             _ => return Err(Error::InvalidChannel),
         };
 
