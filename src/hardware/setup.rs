@@ -158,7 +158,7 @@ impl PounderDevices {
                 )
                 .unwrap()
                 .write();
-            
+
             *clocking = settings.clock;
         }
 
